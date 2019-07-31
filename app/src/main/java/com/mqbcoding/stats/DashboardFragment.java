@@ -270,7 +270,7 @@ public class DashboardFragment extends CarFragment {
                 postUpdate();
             }
 
-        }, 0, 500);//Update display 0.5 second
+        }, 0, 500);//Update display at the least after 0.5 second
     }
 
 
@@ -897,7 +897,7 @@ public class DashboardFragment extends CarFragment {
     }
 
 
-    private final static int UPDATE_AFTER = 200; //ms
+    private final static int UPDATE_AFTER = 100; //ms
     private long lastUpdate = -1;
     private void postUpdate() {
 
