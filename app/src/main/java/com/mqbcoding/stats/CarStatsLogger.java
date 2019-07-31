@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
 public class CarStatsLogger implements CarStatsClient.Listener {
@@ -59,6 +62,54 @@ public class CarStatsLogger implements CarStatsClient.Listener {
     private Gson mGson = new Gson();
     private boolean schemaNeedsUpdate = true;
 
+
+    private LinkedBlockingQueue<Map<String,Object>> logQueue = new LinkedBlockingQueue<>();
+
+    private abstract class CancelableRunnable implements Runnable {
+        boolean canceled = false;
+
+        public void setCanceled(boolean canceled) {
+            this.canceled = canceled;
+        }
+
+        public boolean isCanceled() {
+            return canceled;
+        }
+    }
+    private CancelableRunnable logWorkerRunnable = new CancelableRunnable() {
+        @Override
+        public void run() {
+            Log.i(TAG, "Starting Log Worker");
+
+            while(!isCanceled()) {
+                Map<String,Object> elem = null;
+                try {
+                    elem = logQueue.poll(5, TimeUnit.SECONDS);
+                    if (elem!=null) {
+                        // write
+
+                        createLogStream();
+
+                        //TODO: Sync?!!
+                        mLogWriter.write(mGson.toJson(elem) + '\n');
+
+                        scheduleSyncTimeout();
+                    }
+                } catch (InterruptedException e1) {
+                    //e1.printStackTrace();
+                } catch (IOException e) {
+                    Log.w(TAG, "Error saving measurements", e);
+                    closeWriter();
+                }
+
+            }
+
+            Log.i(TAG, "Closing Log Worker");
+        }
+    };
+    private Thread logWorker = new Thread(logWorkerRunnable);
+
+
     public CarStatsLogger(Context context, CarStatsClient statsClient, Handler handler, String prefix) {
         super();
         mHandler = handler;
@@ -69,6 +120,8 @@ public class CarStatsLogger implements CarStatsClient.Listener {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         sharedPreferences.registerOnSharedPreferenceChangeListener(mPreferencesListener);
         readPreferences(sharedPreferences);
+
+        logWorker.start();
     }
 
     public CarStatsLogger(Context context, CarStatsClient statsClient, Handler handler) {
@@ -101,7 +154,7 @@ public class CarStatsLogger implements CarStatsClient.Listener {
         @Override
         public void run() {
             Log.d(TAG, "Auto-sync");
-            close();
+            closeWriter();
         }
     };
 
@@ -110,23 +163,15 @@ public class CarStatsLogger implements CarStatsClient.Listener {
         if (!mIsEnabled) {
             return;
         }
-        try {
-            createLogStream();
-            if (mLogWriter != null) {
-                Map<String, Object> o = new HashMap<>();
-                o.put("timestamp", JSON_DATE_FORMAT.format(date));
-                for (Map.Entry<String, Object> measurement: values.entrySet()) {
-                    String key = makeJsonKey(measurement.getKey());
-                    o.put(key, measurement.getValue());
-                }
-                mLogWriter.write(mGson.toJson(o));
-                mLogWriter.write('\n');
-                scheduleSyncTimeout();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Error saving measurements", e);
-            close();
+
+        Map<String, Object> o = new HashMap<>();
+        o.put("timestamp", JSON_DATE_FORMAT.format(date));
+        for (Map.Entry<String, Object> measurement : values.entrySet()) {
+            String key = makeJsonKey(measurement.getKey());
+            o.put(key, measurement.getValue());
         }
+
+        logQueue.add(o);
     }
 
     public static String makeJsonKey(String key) {
@@ -194,8 +239,7 @@ public class CarStatsLogger implements CarStatsClient.Listener {
         schemaNeedsUpdate = false;
     }
 
-
-    public synchronized void close() {
+    public  synchronized void closeWriter(){
         if (mLogWriter != null) {
             try {
                 mLogWriter.flush();
@@ -220,6 +264,18 @@ public class CarStatsLogger implements CarStatsClient.Listener {
             mLogFile = null;
             mHandler.removeCallbacks(mSync);
         }
+    }
+
+
+    public synchronized void close() {
+       closeWriter();
+
+       try {
+           logWorkerRunnable.setCanceled(true);
+           logWorker.interrupt();
+       } catch (Exception e) {
+           e.printStackTrace();
+       }
     }
 
     public void registerListener(Listener listener) {
