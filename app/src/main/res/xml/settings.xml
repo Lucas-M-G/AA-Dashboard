@@ -83,6 +83,18 @@
     </PreferenceCategory>
     <PreferenceCategory
         android:singleLineTitle="false"
+        android:title="@string/pref_behaviour">
+
+        <!--TODO: Localize -->
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="resumeMediaOnStart"
+            android:summary="Automatically resume media on start driving. Only relevant for Versions of AA before 2019-08."
+            android:title="Resume media on AA startup (for old AA)" />
+
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:singleLineTitle="false"
         android:title="@string/pref_dataelementsettings">
         <!--TODO: Title Dashboard1 -->
 

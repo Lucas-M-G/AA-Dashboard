@@ -272,6 +272,7 @@
     <string name="item_details_current">Current value:</string>
     <string name="item_details_desciption">Description:</string>
     <string name="item_details_go_back">Go Back</string>
+    <string name="pref_behaviour">Behaviour</string>
 
 
 </resources>

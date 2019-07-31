@@ -10,17 +10,52 @@ import androidx.preference.Preference
 import android.service.notification.NotificationListenerService
 import android.text.SpannableString
 import androidx.preference.PreferenceManager
+import android.content.Intent
+import android.media.AudioManager
+import android.view.KeyEvent
+import android.view.KeyEvent.KEYCODE_MEDIA_PLAY
+
+
+
+
 
 
 class NotificationService : NotificationListenerService() {
+
+    private var connected =false
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        connected=true
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        connected=false
+    }
+
+
+    var resumeMedia = false
+
+    private val onSharedPreferencesChangedListener: SharedPreferences.OnSharedPreferenceChangeListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+                if (key=="resumeMediaOnStart") {
+                    resumeMedia = sharedPreferences?.getBoolean("resumeMediaOnStart",resumeMedia) ?: resumeMedia
+                }
+            }
 
     override fun onCreate() {
 
         super.onCreate()
 
+        resumeMedia=PreferenceManager.getDefaultSharedPreferences(this).getBoolean("resumeMediaOnStart",resumeMedia)
+
+        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(onSharedPreferencesChangedListener)
     }
 
     override fun onDestroy() {
+        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(onSharedPreferencesChangedListener)
+
         super.onDestroy()
     }
 
@@ -29,7 +64,7 @@ class NotificationService : NotificationListenerService() {
         try {
             //TODO: If CarApp visible
 
-            if (sbn.packageName == "com.google.android.apps.maps" && sbn.notification?.group == "navigation_status_notification_group") {
+            if (isMapsNavNotification(sbn)) {
 
                 val pack = sbn.packageName
                 val ticker = sbn.notification.tickerText?.toString()
@@ -54,6 +89,13 @@ class NotificationService : NotificationListenerService() {
 
                 LocalBroadcastManager.getInstance(this).sendBroadcast(msgrcv)
 
+            } else if (isAndroidAutoNotification(sbn)) {
+
+                if (resumeMedia) {
+                    val mAudioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    mAudioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KEYCODE_MEDIA_PLAY))
+                }
+
             }
         }catch (e: Exception) {
             e.printStackTrace()
@@ -63,7 +105,7 @@ class NotificationService : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
 
         try {
-            if (sbn.packageName == "com.google.android.apps.maps" && sbn.notification?.group == "navigation_status_notification_group") {
+            if (isMapsNavNotification(sbn)) {
 
                 LocalBroadcastManager.getInstance(this).sendBroadcast(Intent("GoogleNavigationClosed"))
 
@@ -72,4 +114,10 @@ class NotificationService : NotificationListenerService() {
             e.printStackTrace()
         }
     }
+
+    private fun isMapsNavNotification(sbn: StatusBarNotification):Boolean =
+            sbn.packageName == "com.google.android.apps.maps" && sbn.notification?.group == "navigation_status_notification_group"
+
+    private fun isAndroidAutoNotification(sbn: StatusBarNotification):Boolean =
+            sbn.packageName == "com.google.android.gms" && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || sbn.notification?.channelId=="car.default_notification_channel")
 }
