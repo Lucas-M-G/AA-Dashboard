@@ -31,6 +31,8 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
 
     private val mPreferencesListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, _ -> readPreferences(sharedPreferences) }
 
+    private val audioPlayer = AudioPlayer(mContext)
+
     private val mDismissNotification = Runnable {
         //Log.d(TAG, "Dismissing oil temperature notification")
         //mNotificationManager.cancel(TAG, NOTIFICATION_ID)
@@ -47,6 +49,7 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext)
         sharedPreferences.registerOnSharedPreferenceChangeListener(mPreferencesListener)
         readPreferences(sharedPreferences)
+
     }
 
     private fun readPreferences(preferences: SharedPreferences) {
@@ -105,8 +108,9 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
         mContext.sendBroadcast(intent)
 
         if (playSound) {
-            val soundPlayer = CarNotificationSoundPlayer(mContext, R.raw.light)
-            soundPlayer.play()
+            //val soundPlayer = CarNotificationSoundPlayer(mContext, R.raw.cutted_light)
+            //soundPlayer.play()
+            audioPlayer.play(R.raw.cutted_light,0.8f)
         }
     }
 
