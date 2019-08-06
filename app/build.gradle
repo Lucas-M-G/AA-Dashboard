@@ -2,17 +2,37 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
 
+def versionMajor = 0
+def versionMinor = 88
+def versionPatch = 0
+
 android {
     compileSdkVersion 29
-    buildToolsVersion '28.0.3'
+    buildToolsVersion '29.0.1'
     defaultConfig {
         applicationId "dev.gaitzsch.aadashboard"
         minSdkVersion 22
         targetSdkVersion 29
-        versionCode 61
-        versionName "@string/app_version"
+        versionCode versionMajor * 100 + versionMinor * 10 + versionPatch
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+    }
+
+    buildTypes {
+        debug {
+            versionNameSuffix ".debug"
+            resValue "string", "app_version",
+                    "${defaultConfig.versionName}${versionNameSuffix}"
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            resValue "string", "app_version",
+                    "${defaultConfig.versionName}"
+        }
     }
 }
+
+
 
 configurations.all {
     exclude group: 'com.google.guava', module: 'guava-jdk5'
@@ -33,11 +53,11 @@ dependencies {
     implementation 'com.google.api-client:google-api-client-android:1.22.0' exclude module: 'httpclient'
     implementation 'com.github.christophesmet:android_maskable_layout:v1.3.1'
     implementation 'com.google.http-client:google-http-client-gson:1.22.0' exclude module: 'httpclient'
-    implementation 'androidx.appcompat:appcompat:1.0.2'
-    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation "androidx.appcompat:appcompat:1.0.2"
+    implementation "androidx.cardview:cardview:1.0.0"
     implementation "androidx.preference:preference-ktx:1.1.0-rc01"
     //implementation "androidx.preference:preference:1.1.0-rc01"
-    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation "androidx.constraintlayout:constraintlayout:1.1.3"
     implementation 'com.google.android.material:material:1.0.0'
     implementation 'com.github.anastr:speedviewlib:1.4.+'
     implementation 'com.austingreco:image-list-preference:1.0.0'
