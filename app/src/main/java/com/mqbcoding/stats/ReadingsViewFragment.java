@@ -11,6 +11,10 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 
+import androidx.annotation.NonNull;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,10 +23,6 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-
-import androidx.annotation.NonNull;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
 
 import com.github.martoreto.aauto.vex.CarStatsClient;
 import com.github.martoreto.aauto.vex.FieldSchema;
@@ -164,12 +164,13 @@ public class ReadingsViewFragment extends CarFragment {
             }
         });
 
+        //todo: Finalize this.
         HashMap<String, FieldSchema> schemaItem1 = new HashMap<>();
         HashMap<String, Object> tempMap = new HashMap<>();
-        schemaItem1.put("batteryVoltage", new FieldSchema(0,"TestDescr","",0,0,0));
-        tempMap.put("batteryVoltage", "DAfadslkfnadofnaskjdsa");
-        schemaItem1.put("batteryVoltage2", new FieldSchema(0,"Test","V",0,0,0));
-        tempMap.put("batteryVoltage2", "0.00");
+        schemaItem1.put("No data received", new FieldSchema(0,"No data","",0,0,0));
+        tempMap.put("No Data", "0");
+        schemaItem1.put("No connection", new FieldSchema(0,"Test","V",0,0,0));
+        tempMap.put("No connection", "0.00");
         schemaItem1.put("batteryVoltage3", new FieldSchema(0,"Test","V",0,0,0));
         tempMap.put("batteryVoltage3", "0");
         mSchema.putAll(schemaItem1);
