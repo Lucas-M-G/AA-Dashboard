@@ -6,13 +6,13 @@ import android.service.notification.StatusBarNotification
 import android.graphics.Bitmap
 import android.os.Build
 import android.service.notification.NotificationListenerService
-import android.support.v4.content.LocalBroadcastManager
 import android.text.SpannableString
 import androidx.preference.PreferenceManager
 import android.content.Intent
 import android.media.AudioManager
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_MEDIA_PLAY
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 
 class NotificationService : NotificationListenerService() {

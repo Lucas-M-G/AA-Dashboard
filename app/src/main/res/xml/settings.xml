@@ -92,6 +92,14 @@
             android:summary="Automatically resume media on start driving. Only relevant for Versions of AA before 2019-08."
             android:title="Resume media on AA startup (for old AA)" />
 
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="stagingActive"
+            android:summary="@string/pref_staging_summary"
+            android:summaryOff="@string/pref_staging_summary_off"
+            android:title="@string/pref_staging_title" />
+
     </PreferenceCategory>
     <PreferenceCategory
         android:singleLineTitle="false"
@@ -169,21 +177,6 @@
     <PreferenceCategory
         android:singleLineTitle="false"
         android:title="@string/pref_dataelementsettings">
-
-        <CheckBoxPreference
-            android:defaultValue="false"
-
-            android:key="micActive"
-            android:summary="@string/pref_showmic_summary"
-            android:summaryOff="@string/pref_showmic_summary_off"
-            android:title="@string/pref_showmic_title" />
-
-        <CheckBoxPreference
-            android:defaultValue="true"
-            android:key="stagingActive"
-            android:summary="@string/pref_staging_summary"
-            android:summaryOff="@string/pref_staging_summary_off"
-            android:title="@string/pref_staging_title" />
 
         <CheckBoxPreference
             android:defaultValue="false"
