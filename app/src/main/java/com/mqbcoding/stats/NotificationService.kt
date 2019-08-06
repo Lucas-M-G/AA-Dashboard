@@ -3,21 +3,16 @@ package com.mqbcoding.stats
 import android.app.Notification
 import android.content.*
 import android.service.notification.StatusBarNotification
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.graphics.Bitmap
 import android.os.Build
-import androidx.preference.Preference
 import android.service.notification.NotificationListenerService
+import android.support.v4.content.LocalBroadcastManager
 import android.text.SpannableString
 import androidx.preference.PreferenceManager
 import android.content.Intent
 import android.media.AudioManager
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_MEDIA_PLAY
-
-
-
-
 
 
 class NotificationService : NotificationListenerService() {
@@ -97,7 +92,7 @@ class NotificationService : NotificationListenerService() {
                 }
 
             }
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }

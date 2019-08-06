@@ -3,7 +3,7 @@
 
     <string name="activity_credits_title">Credits</string>
     <string name="activity_main_title">AA-Dashboard</string>
-    <string name="activity_readings_title">Readings</string>
+    <string name="activity_readings_title">Raw data</string>
     <string name="activity_settings_title">AA-Dashboard Settings</string>
     <string name="activity_stopwatch_title">Stopwatch</string>
 
@@ -70,21 +70,6 @@
     <string name="font_vw2" translatable="false">Volkswagen Thesis</string>
     <string name="font_vw3" translatable="false">VW Digit</string>
 
-    <string name="format_decimals">%.1f</string>
-    <string name="format_degrees">%.1f°</string>
-    <string name="format_gforce">%.1fG</string>
-    <string name="format_km">%.1f km</string>
-    <string name="format_miles">%.1f miles</string>
-    <string name="format_noDecimals">%.0f</string>
-    <string name="format_percent">%.1f</string>
-    <string name="format_degreespersec">%.1f°/s</string>
-    <string name="format_temperature">%.1f°</string>
-    <string name="format_temperature0">-,-°</string>
-    <string name="format_temperatureC">%.1f°C</string>
-    <string name="format_temperatureF">%.1f°F</string>
-    <string name="format_volt">%.1fV</string>
-    <string name="format_volt0">-,-V</string>
-
     <string name="kick_uploads_done">Uploads scheduled.</string>
     <string name="kick_uploads_nothing_to_do">All uploads already completed.</string>
 
@@ -131,8 +116,8 @@
     <string name="pref_oil_temp_monitoring_summary">Show notification when engine oil reaches working temperature.</string>
     <string name="pref_oil_temp_monitoring_title">Monitor oil temperature</string>
     <string name="pref_oil_temp_threshold_title">Oil working temperature</string>
-    <string name="pref_omit_empty_readings_summary">Omit empty values in Readings</string>
-    <string name="pref_omit_empty_readings_summary_off">Show empty values in Readings</string>
+    <string name="pref_omit_empty_readings_summary">Omit empty values in Raw data view</string>
+    <string name="pref_omit_empty_readings_summary_off">Show empty values in Raw data view</string>
     <string name="pref_omit_empty_readings_title">Omit empty values</string>
     <string name="pref_pressureunit">Pressure unit</string>
     <string name="pref_providers">Telemetry providers</string>
@@ -157,7 +142,7 @@
     <string name="cancel_uploads_done">Upload cancelled.</string>
     <string name="pref_cancel_uploads_title">Cancel all uploads</string>
     <string name="pref_powerunit">Power unit</string>
-
+    <string name="pref_enable_2nd_dash">Enable secondary dashboard</string>
     <string name="testing">testing</string>
 
     <string name="unit_bar">bar</string>
@@ -181,6 +166,9 @@
 
     <string name="pref_showmic_summary_off">Don\'t show microphone icon in statusbar</string>
     <string name="pref_showmic_title">Microphone icon</string>
+    <string name="pref_staging_summary">Show clock Staging animation at startup</string>
+    <string name="pref_staging_summary_off">Don\'t show staging animation at startup</string>
+    <string name="pref_staging_title">Staging at start</string>
     <string name="label_tyreRR">RR</string>
     <string name="label_tyreRL">RL</string>
     <string name="label_tyreFR">FR</string>
@@ -273,6 +261,7 @@
     <string name="item_details_desciption">Description:</string>
     <string name="item_details_go_back">Go Back</string>
     <string name="pref_behaviour">Behaviour</string>
+    <string name="pref_enginespeed_monitor">Enable RPM monitoring</string>
 
 
 </resources>
