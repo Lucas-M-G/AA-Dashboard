@@ -254,13 +254,20 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/pref_location_category_title">
+        <!--TODO: Localize -->
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="useGPS"
+            android:title="Use GPS Location" />
+
         <SwitchPreference
             android:defaultValue="true"
             android:key="showStreetNameInTitle"
             android:summaryOff="@string/pref_location_showstreet_summary_off"
             android:summaryOn="@string/pref_location_showstreet_summary_on"
-            android:title="@string/pref_location_showstreet_title" />
-        <SwitchPreference
+            android:title="@string/pref_location_showstreet_title"
+            android:dependency="useGPS" />
+        <!--<SwitchPreference
             android:defaultValue="false"
             android:key="useGoogleGeocoding"
             android:dependency="showStreetNameInTitle"
@@ -272,7 +279,7 @@
             android:summaryOff="@string/pref_location_force_geocoding_summary_off"
             android:summaryOn="@string/pref_location_force_geocoding_summary_on"
             android:dependency="useGoogleGeocoding"
-            android:title="@string/pref_location_force_geocoding_title" />
+            android:title="@string/pref_location_force_geocoding_title" />-->
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/pref_unitprefs">
 

@@ -271,11 +271,8 @@
     <string name="item_details_current">Current value:</string>
     <string name="item_details_desciption">Description:</string>
     <string name="item_details_go_back">Go Back</string>
-<<<<<<< HEAD
     <string name="pref_behaviour">Behaviour</string>
-=======
     <string name="pref_enginespeed_category_title">Monitor Engine Speed</string>
->>>>>>> a8c9915ee642546618339725a4c9a98088656587
     <string name="pref_enginespeed_monitor">Enable RPM monitoring</string>
     <string name="pref_enginespeed_rpm_inform">RPM inform</string>
     <string name="pref_enginespeed_rpm_hint">RPM hint</string>

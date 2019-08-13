@@ -42,7 +42,7 @@ public class SettingsActivity extends AppCompatActivity {
     static final String EXTRA_AUTHORIZATION_INTENT = "authorizationRequest";
 
     private static final String PERMISSION_CAR_VENDOR_EXTENSION = "com.google.android.gms.permission.CAR_VENDOR_EXTENSION";
-    public static final String PREF_LOCATION = "useGoogleGeocoding";
+    public static final String PREF_LOCATION = "useGPS";
 
     private GoogleAccountCredential mCredential;
     private Intent mCurrentAuthorizationIntent;

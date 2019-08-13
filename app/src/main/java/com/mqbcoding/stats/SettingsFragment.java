@@ -14,6 +14,8 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import androidx.annotation.Nullable;
+
+import android.preference.SwitchPreference;
 import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
@@ -64,10 +66,10 @@ public class SettingsFragment extends PreferenceFragment {
             new SharedPreferences.OnSharedPreferenceChangeListener() {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-            if (key.equals(SettingsActivity.PREF_LOCATION)) {
-                SwitchPreference useGeocoding = (SwitchPreference) findPreference(SettingsActivity.PREF_LOCATION);
-                useGeocoding.setChecked(sharedPreferences.getBoolean(SettingsActivity.PREF_LOCATION, false));
-            }
+            //if (key.equals(SettingsActivity.PREF_LOCATION)) {
+                //SwitchPreference useGeocoding = (SwitchPreference) findPreference(SettingsActivity.PREF_LOCATION);
+               // useGeocoding.setChecked(sharedPreferences.getBoolean(SettingsActivity.PREF_LOCATION, false));
+            //}
         }
     };
 
