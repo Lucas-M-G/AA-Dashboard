@@ -78,6 +78,10 @@
         <item>@string/element_navAltitude</item>
         <item>@string/element_navHeading</item>
 
+
+        <!--TODO: Localize -->
+        <item>GPS Speed</item>
+
         <!-- PIDs from Torque -->
         <item>@string/element_torque_rpm</item>
         <item>@string/element_torque_speed</item>
@@ -148,6 +152,8 @@
         <item>exlap-tankLevelSecondary</item>
         <item>exlap-Nav_Altitude</item>
         <item>exlap-Nav_Heading</item>
+
+        <item>gps-vehicleSpeed</item>
 
         <item>torque-rpm_0x0c</item>
         <item>torque-speed_0x0d</item>
@@ -227,6 +233,9 @@
         <item>@string/element_shortTermConsumptionSecondary</item>
         <item>@string/element_VIN</item>
 
+        <!--TODO: Localize -->
+        <item>GPS Speed</item>
+
         <!-- PIDs from Torque -->
         <item>@string/element_torque_rpm</item>
         <item>@string/element_torque_speed</item>
@@ -285,6 +294,9 @@
         <item>shortTermConsumptionSecondary</item>
 
         <item>vehicleIdenticationNumber.VIN</item>
+
+        <item>gps-vehicleSpeed</item>
+
         <!-- PIDs from Torque -->
         <!-- Use PIDs like this: torque_<description>_<pid> -->
         <item>torque_rpm_0x0c</item>

@@ -2,6 +2,7 @@ package com.mqbcoding.stats;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -15,6 +16,7 @@ import android.graphics.LightingColorFilter;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -41,6 +43,10 @@ import com.github.anastr.speedviewlib.components.Indicators.ImageIndicator;
 import com.github.anastr.speedviewlib.components.Indicators.Indicator;
 import com.github.martoreto.aauto.vex.CarStatsClient;
 import com.google.android.apps.auto.sdk.StatusBarController;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.Viewport;
@@ -79,7 +85,7 @@ public class DashboardFragment extends CarFragment {
     //icons/labels of the data elements. upper left, upper right, lower left, lower right.
     private TextView mIconElement1, mIconElement2, mIconElement3, mIconElement4;
     //values of the data elements. upper left, upper right, lower left, lower right.
-    private TextView mValueElement1, mValueElement2, mValueElement3, mValueElement4, mTitleElement, mTitleElementRight, mTitleElementLeft;
+    private TextView mValueElement1, mValueElement2, mValueElement3, mValueElement4, mTitleElementRight, mTitleElementCenter, mTitleElementLeft;
     private ConstraintLayout mConstraintClockLeft, mConstraintClockRight, mConstraintClockCenter;
     private ConstraintLayout mConstraintGraphLeft, mConstraintGraphRight, mConstraintGraphCenter;
     private TextView mTextMinLeft, mTextMaxLeft;
@@ -115,15 +121,19 @@ public class DashboardFragment extends CarFragment {
     private static final String FORMAT_KM = "%.1f km";
     private static final String FORMAT_MILES = "%.1f miles";
     private static final String FORMAT_NO_DECIMALS = "%.0f";
+    private static final String FORMAT_NO_DECIMALS_M = "%.0fm";
     private static final String FORMAT_PERCENT = "%.1f";
     private static final String FORMAT_DEGREESPEC = "%.1f°/s";
     private static final String FORMAT_TEMPERATURE = "%.1f°";
-    private static final String FORMAT_TEMPERATURE0 = "-,-°";
+    private static final String FORMAT_TEMPERATURE0 = "-";
     private static final String FORMAT_TEMPERATUREC = "%.1f°C";
     private static final String FORMAT_TEMPERATUREF = "%.1f°F";
     private static final String FORMAT_VOLT = "%.1fV";
-    private static final String FORMAT_VOLT0 = "-,-V";
+    private static final String FORMAT_VOLT0 = "-";
     private boolean celsiusTempUnit;
+
+    private GPSPosition gpsPosition;
+    private Location currentLocation = null;
 
     public DashboardFragment() {
         // Required empty public constructor
@@ -140,7 +150,6 @@ public class DashboardFragment extends CarFragment {
     protected void setupStatusBar(StatusBarController sc) {
         sc.hideTitle();
     }
-
 
     // todo: reset min/max when clock is touched
 
@@ -270,11 +279,19 @@ public class DashboardFragment extends CarFragment {
         Log.i(TAG, "onAttach");
     }
 
-
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.i(TAG, "onCreate");
+
+        gpsPosition=new GPSPosition(getContext());
+        gpsPosition.setGpsPositionCallback(new GPSPosition.GPSPositionCallback() {
+            @Override
+            public void onCallback(@org.jetbrains.annotations.Nullable Location location) {
+                currentLocation=location;
+            }
+        });
+
     }
 
     private void updateDisplay() {
@@ -416,8 +433,8 @@ public class DashboardFragment extends CarFragment {
         mValueElement4 = rootView.findViewById(R.id.value_Element4);
 
         //title text element
-        mTitleElement = rootView.findViewById(R.id.textTitleElement);
         mTitleElementRight = rootView.findViewById(R.id.textTitleElementRight);
+        mTitleElementCenter = rootView.findViewById(R.id.textTitleElementCenter);
         mTitleElementLeft = rootView.findViewById(R.id.textTitleElementLeft);
 
         //labels at these text elements:
@@ -462,8 +479,8 @@ public class DashboardFragment extends CarFragment {
         mValueElement2.setTypeface(typeface);
         mValueElement3.setTypeface(typeface);
         mValueElement4.setTypeface(typeface);
-        mTitleElement.setTypeface(typeface);
         mTitleElementRight.setTypeface(typeface);
+        mTitleElementCenter.setTypeface(typeface);
         mTitleElementLeft.setTypeface(typeface);
 
         //max
@@ -477,7 +494,6 @@ public class DashboardFragment extends CarFragment {
         mSteeringWheelAngle = rootView.findViewById(R.id.wheel_angle_image);
 
         //click the
-        mTitleElement.setOnClickListener(resetMinMax);
         mGraphLeft.setOnClickListener(toggleView);
         mConstraintClockLeft.setOnClickListener(toggleView);
         mGraphCenter.setOnClickListener(toggleView);
@@ -740,6 +756,14 @@ public class DashboardFragment extends CarFragment {
         getContext().bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
         startTorque();
         createAndStartUpdateTimer();
+
+        LocalBroadcastManager.getInstance(getContext())
+                .registerReceiver(onNoticeGoogleNavigationUpdate, new IntentFilter("GoogleNavigationUpdate"));
+        LocalBroadcastManager.getInstance(getContext())
+                .registerReceiver(onNoticeGoogleNavigationClosed, new IntentFilter("GoogleNavigationClosed"));
+
+
+        gpsPosition.startLocationUpdates();
     }
 
     private void startTorque() {
@@ -799,6 +823,8 @@ public class DashboardFragment extends CarFragment {
         LocalBroadcastManager.getInstance(getContext())
                 .unregisterReceiver(onNoticeGoogleNavigationClosed);
 
+        gpsPosition.stopLocationUpdates();
+
         super.onPause();
     }
 
@@ -819,8 +845,8 @@ public class DashboardFragment extends CarFragment {
         mValueElement2 = null;
         mValueElement3 = null;
         mValueElement4 = null;
-        mTitleElement = null;
         mTitleElementRight = null;
+        mTitleElementCenter = null;
         mIconElement1 = null;
         mIconElement2 = null;
         mIconElement3 = null;
@@ -1020,6 +1046,7 @@ public class DashboardFragment extends CarFragment {
             case "coolantTemperature":
             case "oilTemperature":
             case "vehicleSpeed":
+            case "gps-vehicleSpeed":
             case "torque_speed_0x0d":
             case "torque_rpm_0x0c":
             case "engineSpeed":
@@ -1113,6 +1140,7 @@ public class DashboardFragment extends CarFragment {
                 label.setBackground(getContext().getDrawable(R.drawable.ic_oil));
                 break;
             case "vehicleSpeed":
+            case "gps-vehicleSpeed":
             case "torque_speed_0x0d":
                 label.setText(R.string.unit_kmh);
                 icon = "empty";
@@ -1357,6 +1385,7 @@ public class DashboardFragment extends CarFragment {
                 setupClock(icon, "ic_measurement", "", clock, false, getString(R.string.testing), 0, 360, "float");
                 break;
             case "exlap-vehicleSpeed":
+            case "gps-vehicleSpeed":
             case "torque-speed_0x0d":
                 setupClock(icon, "ic_none", "", clock, false, getString(R.string.unit_kmh), 0, 300, "integer");
                 break;
@@ -1608,7 +1637,6 @@ public class DashboardFragment extends CarFragment {
                     // all data that can be put on the clock without further modification:
                     case "exlap-Nav_Heading":
                     case "exlap-batteryVoltage":
-                    case "exlap-Nav_Altitude":
                     case "exlap-lateralAcceleration":
                     case "exlap-longitudinalAcceleration":
                     case "exlap-yawRate":
@@ -1617,6 +1645,11 @@ public class DashboardFragment extends CarFragment {
                     case "exlap-brakePressure":
                     case "exlap-currentTorque":
                         // all data that can be put on the clock without further modification:
+                        break;
+                    case "exlap-Nav_Altitude":
+                        if (clockValue==0f && currentLocation != null) {
+                            clockValue = (float)currentLocation.getAltitude();
+                        }
                         break;
                     case "exlap-currentOutputPower":
                         clockValue = clockValue * powerFactor;
@@ -1695,6 +1728,23 @@ public class DashboardFragment extends CarFragment {
                             }
                             clockValue = clockValue * speedFactor;
 
+                        }
+                        break;
+                    case "gps-vehicleSpeed":
+                        String speedUnitGps = (String) mLastMeasurements.get("vehicleSpeed.unit");
+                        if (speedUnitGps==null) speedUnitGps="kmh";
+                        if (currentLocation != null) {
+                            switch (speedUnitGps) {
+                                case "mph":
+                                    speedFactor = 1.60934f;
+                                    clock.setUnit("mph");
+                                    break;
+                                case "kmh":
+                                    speedFactor = 1f;
+                                    clock.setUnit("kmh");
+                                    break;
+                            }
+                            clockValue = currentLocation.getSpeed() * 3.6f * speedFactor;
                         }
                         break;
                     // torque data elements:
@@ -1831,17 +1881,9 @@ public class DashboardFragment extends CarFragment {
 
     private void updateTitle() {
 
-        String currentTitleValue = mTitleElement.getText().toString();
         String currentRightTitleValue = mTitleElementRight.getText().toString();
+        String currentCenterTitleValue = mTitleElementCenter.getText().toString();
         String currentLeftTitleValue = mTitleElementLeft.getText().toString();
-
-        // Display location in center of title bar:
-
-        String currentTime = getTime();
-
-        if (!Objects.equals(currentTitleValue, currentTime)) {
-            mTitleElement.setText(currentTime);
-        }
 
         // Display location in left side of Title  bar
         String leftTitle;
@@ -1850,6 +1892,8 @@ public class DashboardFragment extends CarFragment {
 
         String location1 = (String) mLastMeasurements.get("Nav_CurrentPosition.Street");
         String location2 = (String) mLastMeasurements.get("Nav_CurrentPosition.City");
+
+
 
         if (location1==null && location2==null) {
             leftTitle = currentLocationFromGoogleMapsNotification; // ="";
@@ -1864,6 +1908,21 @@ public class DashboardFragment extends CarFragment {
         if (!Objects.equals(currentLeftTitleValue, leftTitle)) {
             mTitleElementLeft.setText(leftTitle);
         }
+
+
+        Float altitude = (Float) mLastMeasurements.get("Nav_Altitude");
+        if (altitude==null && currentLocation!=null) {
+            //set GPS Altitude
+            altitude=(float)currentLocation.getAltitude();
+        }
+        String txtAltitude = "";
+        if (altitude!=null) {
+            txtAltitude=String.format(Locale.US, FORMAT_NO_DECIMALS_M, altitude);
+        }
+        if (!Objects.equals(currentCenterTitleValue, txtAltitude)) {
+            mTitleElementCenter.setText(txtAltitude);
+        }
+
 
         // Display temperature in right side of Title  bar
         Float currentTemperature = (Float) mLastMeasurements.get("outsideTemperature");
@@ -2004,14 +2063,34 @@ public class DashboardFragment extends CarFragment {
                         value.setText(String.format(Locale.US, FORMAT_DECIMALS, mVehicleSpeed));
                         label.setText(speedUnit);
                     }
+                    break;
+
+                case "gps-vehicleSpeed":
+                    if (currentLocation!=null) {
+                        value.setText(String.format(Locale.US, FORMAT_NO_DECIMALS, currentLocation.getSpeed()));
+                    }
+
+                    break;
+
                     // values that don't need any decimals
                 case "engineSpeed":
                 case "Nav_Heading":
-                case "Nav_Altitude":
                     Float mNoDecimalValue = (Float) mLastMeasurements.get(queryElement);
                     if (mNoDecimalValue != null) {
                         value.setText(String.format(Locale.US, FORMAT_NO_DECIMALS, mNoDecimalValue));
                     }
+
+                    break;
+                case "Nav_Altitude":
+                    Float altitude = (Float) mLastMeasurements.get("Nav_Altitude");
+                    if (altitude==null && currentLocation!=null) {
+                        //set GPS Altitude
+                        altitude=(float)currentLocation.getAltitude();
+                    }
+                    if (altitude!=null) {
+                        value.setText(String.format(Locale.US, FORMAT_NO_DECIMALS, altitude));
+                    }
+
                     break;
 
                 // Decimal values, without any specific modification:

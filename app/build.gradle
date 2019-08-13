@@ -70,9 +70,9 @@ dependencies {
 
     //noinspection GradleDependency
     implementation 'com.google.guava:guava:22.0-android'
-    implementation 'com.google.android.gms:play-services-auth:16.0.1'
-    implementation 'com.google.android.gms:play-services-identity:16.0.0'
-    implementation 'com.android.support:support-v4:28.0.0'
+    implementation 'com.google.android.gms:play-services-auth:17.0.0'
+    implementation 'com.google.android.gms:play-services-identity:17.0.0'
+    implementation 'com.google.android.gms:play-services-location:17.0.0'
 
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
