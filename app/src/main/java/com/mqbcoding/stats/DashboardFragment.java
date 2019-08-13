@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.LightingColorFilter;
@@ -79,7 +80,7 @@ public class DashboardFragment extends CarFragment {
     private String mElement1Query, mElement2Query, mElement3Query, mElement4Query;
     private String selectedTheme, selectedBackground;
     private String mClockLQuery, mClockCQuery, mClockRQuery;
-    private String pressureUnit, temperatureUnit, selectedFont;
+    private String pressureUnit, temperatureUnit;
     private float pressureFactor, speedFactor, powerFactor;
     private int pressureMin, pressureMax;
     //icons/labels of the data elements. upper left, upper right, lower left, lower right.
@@ -112,6 +113,9 @@ public class DashboardFragment extends CarFragment {
     private View rootView;
     private String androidClockFormat = "hh:mm a";
     int dashboardNum=1;
+    private String googleGeocodeLocationStr = null;
+    private String googleMapsLocationStr = null;
+    private GeocodeLocationService mGeocodingService;
 
     // notation formats
     private static final String FORMAT_DECIMALS = "%.1f";
@@ -131,6 +135,9 @@ public class DashboardFragment extends CarFragment {
     private static final String FORMAT_VOLT = "%.1fV";
     private static final String FORMAT_VOLT0 = "-";
     private boolean celsiusTempUnit;
+    private boolean showStreetName, useGoogleGeocoding, forceGoogleGeocoding;
+    private String selectedFont;
+    private boolean selectedPressureUnits;
 
     private GPSPosition gpsPosition;
     private Location currentLocation = null;
@@ -215,7 +222,7 @@ public class DashboardFragment extends CarFragment {
 
     };
 
-    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+    private final ServiceConnection mVexServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             CarStatsService.CarStatsBinder carStatsBinder = (CarStatsService.CarStatsBinder) iBinder;
@@ -306,79 +313,7 @@ public class DashboardFragment extends CarFragment {
         }, 0, 500);//Update display at the least after 0.5 second
     }
 
-
-    @Override
-    public View onCreateView(@NotNull LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        Log.i(TAG, "onCreateView");
-        rootView = inflater.inflate(R.layout.fragment_dashboard, container, false);
-
-        //Get preferences
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-
-        boolean pressureUnits = sharedPreferences.getBoolean("selectPressureUnit", true);  //true = bar, false = psi
-        celsiusTempUnit = sharedPreferences.getBoolean("selectTemperatureUnit", true);  //true = celcius, false = fahrenheit
-        powerUnits = sharedPreferences.getBoolean("selectPowerUnit", true);  //true = kw, false = ps
-
-        raysOn = sharedPreferences.getBoolean("highVisActive", false);  //true = show high vis rays, false = don't show them.
-        maxOn = sharedPreferences.getBoolean("maxValuesActive", false); //true = show max values, false = hide them
-        maxMarksOn = sharedPreferences.getBoolean("maxMarksActive", false); //true = show max values as a mark on the clock, false = hide them
-        selectedFont = sharedPreferences.getString("selectedFont", "segments");
-        ticksOn = sharedPreferences.getBoolean("ticksActive", false); // if true, it will display the value of each of the ticks
-        ambientOn = sharedPreferences.getBoolean("ambientActive", false);  //true = use ambient colors, false = don't use.
-        selectedTheme = sharedPreferences.getString("selectedTheme", "");
-        //todo: fix this. currently not very efficient, because this is already requested in MainCarActivity
-        selectedBackground = sharedPreferences.getString("selectedBackground", "background_incar_black");
-        stagingDone = !sharedPreferences.getBoolean("stagingActive",true);
-
-        //Set wallpaper
-        int resId = getResources().getIdentifier(selectedBackground, "drawable", getContext().getPackageName());
-
-        if (resId != 0) {
-            Drawable wallpaperImage = ContextCompat.getDrawable(getContext(), resId);
-            rootView.setBackground(wallpaperImage);
-        }
-
-        //set textview to have a custom digital font:
-        Typeface typeface = Typeface.createFromAsset(getContext().getAssets(), "digital.ttf");
-        switch (selectedFont) {
-            case "segments":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "digital.ttf");
-                break;
-            case "seat":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "SEAT_MetaStyle_MonoDigit_Regular.ttf");
-                break;
-            case "audi":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "AudiTypeDisplayHigh.ttf");
-                break;
-            case "vw":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "VWTextCarUI-Regular.ttf");
-                break;
-            case "vw2":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "VWThesis_MIB_Regular.ttf");
-                break;
-            case "frutiger":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "Frutiger.otf");
-                break;
-            case "vw3":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "VW_Digit_Reg.otf");
-                break;
-            case "skoda":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "Skoda.ttf");
-                break;
-            case "larabie":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "Larabie.ttf");
-                break;
-            case "ford":
-                typeface = Typeface.createFromAsset(getContext().getAssets(), "UnitedSans.otf");
-                break;
-        }
-
-        Log.d(TAG, "font: " + typeface);
-
-        //-------------------------------------------------------------
-        //find all elements needed
-
+    private void setupViews(View rootView) {
         //layouts/constrains:
         mConstraintClockLeft = rootView.findViewById(R.id.constraintClockLeft);
         mConstraintClockCenter = rootView.findViewById(R.id.constraintClockCenter);
@@ -450,7 +385,55 @@ public class DashboardFragment extends CarFragment {
         mTextMinLeft = rootView.findViewById(R.id.textMinLeft);
         mTextMinCenter = rootView.findViewById(R.id.textMinCenter);
         mTextMinRight = rootView.findViewById(R.id.textMinRight);
+        mSteeringWheelAngle = rootView.findViewById(R.id.wheel_angle_image);
+        setupListeners();
+    }
 
+    private void setupListeners() {
+        //click the
+        mGraphLeft.setOnClickListener(toggleView);
+        mConstraintClockLeft.setOnClickListener(toggleView);
+        mGraphCenter.setOnClickListener(toggleView);
+        mConstraintClockCenter.setOnClickListener(toggleView);
+        mGraphRight.setOnClickListener(toggleView);
+        mConstraintClockRight.setOnClickListener(toggleView);
+    }
+
+    private void setupTypeface(String selectedFont) {
+        AssetManager assetsMgr = getContext().getAssets();
+        Typeface typeface = Typeface.createFromAsset(assetsMgr, "digital.ttf");
+        switch (selectedFont) {
+            case "segments":
+                typeface = Typeface.createFromAsset(assetsMgr, "digital.ttf");
+                break;
+            case "seat":
+                typeface = Typeface.createFromAsset(assetsMgr, "SEAT_MetaStyle_MonoDigit_Regular.ttf");
+                break;
+            case "audi":
+                typeface = Typeface.createFromAsset(assetsMgr, "AudiTypeDisplayHigh.ttf");
+                break;
+            case "vw":
+                typeface = Typeface.createFromAsset(assetsMgr, "VWTextCarUI-Regular.ttf");
+                break;
+            case "vw2":
+                typeface = Typeface.createFromAsset(assetsMgr, "VWThesis_MIB_Regular.ttf");
+                break;
+            case "frutiger":
+                typeface = Typeface.createFromAsset(assetsMgr, "Frutiger.otf");
+                break;
+            case "vw3":
+                typeface = Typeface.createFromAsset(assetsMgr, "VW_Digit_Reg.otf");
+                break;
+            case "skoda":
+                typeface = Typeface.createFromAsset(assetsMgr, "Skoda.ttf");
+                break;
+            case "larabie":
+                typeface = Typeface.createFromAsset(assetsMgr, "Larabie.ttf");
+                break;
+            case "ford":
+                typeface = Typeface.createFromAsset(assetsMgr, "UnitedSans.otf");
+                break;
+        }
         //-------------------------------------------------------------
         //Give them all the right custom typeface
         //clocks
@@ -460,20 +443,6 @@ public class DashboardFragment extends CarFragment {
         mGraphValueLeft.setTypeface(typeface);
         mGraphValueCenter.setTypeface(typeface);
         mGraphValueRight.setTypeface(typeface);
-
-        if (selectedTheme.equals("Beetle")) {
-            Typeface beetletypeface = Typeface.createFromAsset(getContext().getAssets(), "Schluber.ttf");
-            mClockLeft.setTextTypeface(beetletypeface);
-            mClockCenter.setTextTypeface(beetletypeface);
-            mClockRight.setTextTypeface(beetletypeface);
-            mClockMaxLeft.setWithTremble(false);
-            mClockMinLeft.setWithTremble(false);
-            mClockMaxCenter.setWithTremble(false);
-            mClockMinCenter.setWithTremble(false);
-            mClockMaxRight.setWithTremble(false);
-            mClockMinRight.setWithTremble(false);
-        }
-
         //elements
         mValueElement1.setTypeface(typeface);
         mValueElement2.setTypeface(typeface);
@@ -491,28 +460,97 @@ public class DashboardFragment extends CarFragment {
         mTextMinRight.setTypeface(typeface);
         mTextMaxRight.setTypeface(typeface);
 
-        mSteeringWheelAngle = rootView.findViewById(R.id.wheel_angle_image);
+        Log.d(TAG, "font: " + typeface);
+        this.selectedFont = selectedFont;
+    }
 
-        //click the
-        mGraphLeft.setOnClickListener(toggleView);
-        mConstraintClockLeft.setOnClickListener(toggleView);
-        mGraphCenter.setOnClickListener(toggleView);
-        mConstraintClockCenter.setOnClickListener(toggleView);
-        mGraphRight.setOnClickListener(toggleView);
-        mConstraintClockRight.setOnClickListener(toggleView);
+    private void onPreferencesChangeHandler() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        ambientOn = sharedPreferences.getBoolean("ambientActive", false);  //true = use ambient colors, false = don't use.
+        // Load this only on first run, then leave it alone
+        if (stagingDone == null) {
+            stagingDone = !sharedPreferences.getBoolean("stagingActive", true);
+        }
+        showStreetName = sharedPreferences.getBoolean("showStreetNameInTitle", true);
+        useGoogleGeocoding = sharedPreferences.getBoolean("useGoogleGeocoding", false);
+        forceGoogleGeocoding = sharedPreferences.getBoolean("forceGoogleGeocoding", false);
+
+        String readedBackground = sharedPreferences.getString("selectedBackground", "background_incar_black");
+        if (!readedBackground.equals(selectedBackground)) {
+            setupBackground(readedBackground);
+        }
+
+        String readedFont = sharedPreferences.getString("selectedFont", "segments");
+        if (!readedBackground.equals(selectedFont)) {
+            setupTypeface(readedFont);
+        }
+
+        String readedTheme = sharedPreferences.getString("selectedTheme", "");
+        if (!readedTheme.equals(selectedTheme)) {
+            if (readedTheme.equals("Beetle")) {
+                Typeface beetletypeface = Typeface.createFromAsset(getContext().getAssets(), "Schluber.ttf");
+                mClockLeft.setTextTypeface(beetletypeface);
+                mClockCenter.setTextTypeface(beetletypeface);
+                mClockRight.setTextTypeface(beetletypeface);
+                mClockMaxLeft.setWithTremble(false);
+                mClockMinLeft.setWithTremble(false);
+                mClockMaxCenter.setWithTremble(false);
+                mClockMinCenter.setWithTremble(false);
+                mClockMaxRight.setWithTremble(false);
+                mClockMinRight.setWithTremble(false);
+            }
+            selectedTheme = readedTheme;
+        }
+        boolean readedTicksOn = sharedPreferences.getBoolean("ticksActive", false); // if true, it will display the value of each of the ticks
+        if(ticksOn == null || readedTicksOn != ticksOn) {
+            ticksOn = readedTicksOn;
+            turnTickEnabled(ticksOn);
+        }
 
         String dashboardId = "d"+dashboardNum+"_";
         //determine what data the user wants to have on the 4 data views
-        mElement1Query = sharedPreferences.getString(dashboardId+"selectedView1", "none");
-        mElement2Query = sharedPreferences.getString(dashboardId+"selectedView2", "none");
-        mElement3Query = sharedPreferences.getString(dashboardId+"selectedView3", "none");
-        mElement4Query = sharedPreferences.getString(dashboardId+"selectedView4", "none");
-
+        String readedElement1Query = sharedPreferences.getString(dashboardId+"selectedView1", "none");
+        if (!readedElement1Query.equals(mElement1Query)) {
+            mElement1Query = readedElement1Query;
+            setupElement(mElement1Query, mValueElement1, mIconElement1);
+        }
+        String readedElement2Query = sharedPreferences.getString(dashboardId+"selectedView2", "none");
+        if (!readedElement2Query.equals(mElement2Query)) {
+            mElement2Query = readedElement2Query;
+            setupElement(mElement2Query, mValueElement2, mIconElement2);
+        }
+        String readedElement3Query = sharedPreferences.getString(dashboardId+"selectedView3", "none");
+        if (!readedElement3Query.equals(mElement3Query)) {
+            mElement3Query = readedElement3Query;
+            setupElement(mElement3Query, mValueElement3, mIconElement3);
+        }
+        String readedElement4Query = sharedPreferences.getString(dashboardId+"selectedView4", "none");
+        if (!readedElement4Query.equals(mElement4Query)) {
+            mElement4Query = readedElement4Query;
+            setupElement(mElement4Query, mValueElement4, mIconElement4);
+        }
         //determine what data the user wants to have on the 3 clocks, but set defaults first
-        mClockLQuery = sharedPreferences.getString(dashboardId+"selectedClockLeft", "exlap-batteryVoltage");
-        mClockCQuery = sharedPreferences.getString(dashboardId+"selectedClockCenter", "exlap-oilTemperature");
-        mClockRQuery = sharedPreferences.getString(dashboardId+"selectedClockRight", "exlap-engineSpeed");
-
+        //setup clocks, including the max/min clocks and highvis rays and icons:
+        //usage: setupClocks(query value, what clock, what icon, which ray, which min clock, which max clock)
+        //could probably be done MUCH more efficient but that's for the future ;)
+        String readedClockLQuery = sharedPreferences.getString(dashboardId+"selectedClockLeft", "exlap-batteryVoltage");
+        if (!readedClockLQuery.equals(mClockLQuery)) {
+            mClockLQuery = readedClockLQuery;
+            setupClocks(mClockLQuery, mClockLeft, mIconClockL, mRayLeft, mClockMinLeft, mClockMaxLeft);
+            turnTickEnabled(ticksOn); // Due to bug in SpeedView, we need to re-enable ticks
+        }
+        String readedClockCQuery = sharedPreferences.getString(dashboardId+"selectedClockCenter", "exlap-oilTemperature");
+        if (!readedClockCQuery.equals(mClockCQuery)) {
+            mClockCQuery = readedClockCQuery;
+            setupClocks(mClockCQuery, mClockCenter, mIconClockC, mRayCenter, mClockMinCenter, mClockMaxCenter);
+            turnTickEnabled(ticksOn); // Due to bug in SpeedView, we need to re-enable ticks
+        }
+        String readedClockRQuery = sharedPreferences.getString(dashboardId+"selectedClockRight", "exlap-engineSpeed");
+        if (!readedClockRQuery.equals(mClockRQuery)) {
+            mClockRQuery = readedClockRQuery;
+            setupClocks(mClockRQuery, mClockRight, mIconClockR, mRayRight, mClockMinRight, mClockMaxRight);
+            turnTickEnabled(ticksOn); // Due to bug in SpeedView, we need to re-enable ticks
+        }
         //debug logging of each of the chosen elements
         Log.d(TAG, "element 1 selected:" + mElement1Query);
         Log.d(TAG, "element 2 selected:" + mElement2Query);
@@ -523,193 +561,187 @@ public class DashboardFragment extends CarFragment {
         Log.d(TAG, "clock c selected:" + mClockCQuery);
         Log.d(TAG, "clock r selected:" + mClockRQuery);
 
+        boolean readedPressureUnits = sharedPreferences.getBoolean("selectPressureUnit", true);  //true = bar, false = psi
+        if (readedPressureUnits != selectedPressureUnits) {
+            selectedPressureUnits = readedPressureUnits;
+            pressureFactor = selectedPressureUnits ? 1 : (float) 14.5037738;
+            pressureUnit = selectedPressureUnits ? "bar" : "psi";
+            pressureMin = selectedPressureUnits ? -3 : -30;
+            pressureMax = selectedPressureUnits ? 3 : 30;
+        }
+
+        boolean readedTempUnit = sharedPreferences.getBoolean("selectTemperatureUnit", true);  //true = celcius, false = fahrenheit
+        if (readedTempUnit != celsiusTempUnit) {
+            celsiusTempUnit = readedTempUnit;
+            temperatureUnit = getString(celsiusTempUnit ? R.string.unit_c : R.string.unit_f);
+        }
+
+        boolean readedPowerUnits = sharedPreferences.getBoolean("selectPowerUnit", true);  //true = kw, false = ps
+        if (powerUnits == null || readedPowerUnits != powerUnits) {
+            powerUnits = readedPowerUnits;
+            powerFactor = powerUnits ? 1 : 1.35962f;
+        }
+
+
+        //show texts and backgrounds for max/min, according to the setting
+        boolean readedMaxOn = sharedPreferences.getBoolean("maxValuesActive", false); //true = show max values, false = hide them
+        if (maxOn == null || readedMaxOn != maxOn) {
+            maxOn = readedMaxOn;
+            turnMinMaxTextViewsEnabled(maxOn);
+        }
+
+        //show high visible rays on, according to the setting
+        boolean readedRaysOn = sharedPreferences.getBoolean("highVisActive", false);  //true = show high vis rays, false = don't show them.
+        if (raysOn == null || readedRaysOn != raysOn) {
+            raysOn = readedRaysOn;
+            turnRaysEnabled(raysOn);
+        }
+
+        boolean readedMaxMarksOn = sharedPreferences.getBoolean("maxMarksActive", false); //true = show max values as a mark on the clock, false = hide them
+        if (maxMarksOn == null || readedMaxMarksOn != maxMarksOn) {
+            maxMarksOn = readedMaxMarksOn;
+            turnMinMaxMarksEnabled(maxMarksOn);
+        }
+
+    }
+
+    private void setupBackground(String newBackground) {
+        int resId = getResources().getIdentifier(newBackground, "drawable", getContext().getPackageName());
+        if (resId != 0) {
+            Drawable wallpaperImage = ContextCompat.getDrawable(getContext(), resId);
+            rootView.setBackground(wallpaperImage);
+        }
+        selectedBackground = newBackground;
+    }
+
+    private SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            onPreferencesChangeHandler();
+        }
+    };
+
+    private void turnMinMaxMarksEnabled(boolean enabled) {
+        //show clock marks for max/min, according to the setting
+        mClockMaxLeft.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mClockMaxCenter.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mClockMaxRight.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mClockMinLeft.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mClockMinCenter.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mClockMinRight.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    private void turnMinMaxTextViewsEnabled(boolean enabled) {
+        mTextMaxLeft.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mTextMaxCenter.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mTextMaxRight.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+
+        mTextMinLeft.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mTextMinCenter.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mTextMinRight.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    private void turnRaysEnabled(boolean enabled) {
+        mRayLeft.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mRayCenter.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        mRayRight.setVisibility(enabled ? View.VISIBLE : View.INVISIBLE);
+        if (enabled) {
+            //also hide the needle on the clocks
+            mClockLeft.setIndicator(Indicator.Indicators.NoIndicator);
+            mClockCenter.setIndicator(Indicator.Indicators.NoIndicator);
+            mClockRight.setIndicator(Indicator.Indicators.NoIndicator);
+        } else {
+            setupIndicators();
+        }
+    }
+
+    private void turnTickEnabled(boolean enabled) {
+        int tickNum = 9;
+        if (selectedTheme.equals("Beetle")) tickNum = 7; //special for Beetle theme
+
+        mClockLeft.setTickNumber(enabled ? tickNum : 0);
+        mClockLeft.setTextColor(Color.WHITE);
+        mClockCenter.setTickNumber(enabled ? tickNum : 0);
+        mClockCenter.setTextColor(Color.WHITE);
+        mClockRight.setTickNumber(enabled ? tickNum : 0);
+        mClockRight.setTextColor(Color.WHITE);
+    }
+
+    private void setupIndicators() {
+        int clockSize = mClockLeft.getHeight();
+        if (clockSize == 0) {
+            clockSize = 250;
+        }
+        //this is to enable an image as indicator.
+        TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(new int[]{R.attr.themedNeedle});
+        int resourceId = typedArray.getResourceId(0, 0);
+        typedArray.recycle();
+
+        ImageIndicator imageIndicator = new ImageIndicator(getContext(), resourceId, clockSize, clockSize);
+
+        int color = mClockLeft.getIndicatorColor();
+        // if rays on, turn off everything else.
+        // it doesn't look too efficient at the moment, but that's to prevent the theme from adding an indicator to the rays.
+        if (raysOn) {
+            // todo: move this to setupClock
+
+            mClockLeft.setIndicator(Indicator.Indicators.NoIndicator);
+            mClockCenter.setIndicator(Indicator.Indicators.NoIndicator);
+            mClockRight.setIndicator(Indicator.Indicators.NoIndicator);
+
+            mRayLeft.setIndicator(Indicator.Indicators.NoIndicator);
+            mRayRight.setIndicator(Indicator.Indicators.NoIndicator);
+            mRayCenter.setIndicator(Indicator.Indicators.NoIndicator);
+
+            //make indicatorlight color transparent if you don't need it:
+            mClockLeft.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+            mClockCenter.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+            mClockRight.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+//
+            mRayLeft.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+            mRayRight.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+            mRayCenter.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
+
+
+        } else if (color == -14575885) {
+            //if theme has transparent indicator color, give clocks a custom image indicator
+            //todo: do this on other fragments as well
+            mClockLeft.setIndicator(imageIndicator);
+            mClockCenter.setIndicator(imageIndicator);
+            mClockRight.setIndicator(imageIndicator);
+        }
+    }
+
+
+    @Override
+    public View onCreateView(@NotNull LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        Log.i(TAG, "onCreateView");
+        rootView = inflater.inflate(R.layout.fragment_dashboard, container, false);
+        setupViews(rootView);
+        onPreferencesChangeHandler();
+
+        //Get preferences
         //set pressure dial to the wanted units
         //Most bar dials go from -2 to 3 bar.
         //Most PSI dials go from -30 to 30 psi.
         //pressurefactor is used to calculate the right value for psi later
-        pressureFactor = pressureUnits ? 1 : (float) 14.5037738;
-        pressureUnit = pressureUnits ? "bar" : "psi";
-        pressureMin = pressureUnits ? -3 : -30;
-        pressureMax = pressureUnits ? 3 : 30;
-
-        temperatureUnit = getString(celsiusTempUnit ? R.string.unit_c : R.string.unit_f);
-        //TODO:
-        if (powerUnits) {
-            powerFactor= 1;
-            //powerUnit = "KW";
-
-        } else {
-            powerFactor = 1.35962f;
-            //pressureUnit = "HP";
-        }
-
-
         // build ImageIndicator using the resourceId
         // get the size of the Clock, to make sure the imageindicator has the right size.
         mClockLeft.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
                 mClockLeft.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                int clockSize = mClockLeft.getHeight();
-                if (clockSize == 0) {
-                    clockSize = 250;
-                }
-                //this is to enable an image as indicator.
-                TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(new int[]{R.attr.themedNeedle});
-                int resourceId = typedArray.getResourceId(0, 0);
-                typedArray.recycle();
-
-                ImageIndicator imageIndicator = new ImageIndicator(getContext(), resourceId, clockSize, clockSize);
-
-                int color = mClockLeft.getIndicatorColor();
-                // if rays on, turn off everything else.
-                // it doesn't look too efficient at the moment, but that's to prevent the theme from adding an indicator to the rays.
-                if (raysOn) {
-                    // todo: move this to setupClock
-
-                    mClockLeft.setIndicator(Indicator.Indicators.NoIndicator);
-                    mClockCenter.setIndicator(Indicator.Indicators.NoIndicator);
-                    mClockRight.setIndicator(Indicator.Indicators.NoIndicator);
-
-                    mRayLeft.setIndicator(Indicator.Indicators.NoIndicator);
-                    mRayRight.setIndicator(Indicator.Indicators.NoIndicator);
-                    mRayCenter.setIndicator(Indicator.Indicators.NoIndicator);
-
-                    //make indicatorlight color transparent if you don't need it:
-                    mClockLeft.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-                    mClockCenter.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-                    mClockRight.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-//
-                    mRayLeft.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-                    mRayRight.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-                    mRayCenter.setIndicatorLightColor(Color.parseColor("#00FFFFFF"));
-
-
-                } else if (color == -14575885) {
-                    //if theme has transparent indicator color, give clocks a custom image indicator
-                    //todo: do this on other fragments as well
-                    mClockLeft.setIndicator(imageIndicator);
-                    mClockCenter.setIndicator(imageIndicator);
-                    mClockRight.setIndicator(imageIndicator);
-                }
+                setupIndicators();
 
                 setupGraph(mClockLeft, mGraphLeft, mSpeedSeriesLeft, mConstraintGraphLeft);
                 setupGraph(mClockCenter, mGraphCenter, mSpeedSeriesCenter, mConstraintGraphCenter);
                 setupGraph(mClockRight, mGraphRight, mSpeedSeriesRight, mConstraintGraphRight);
-
-                if (ticksOn) {
-
-                    int tickNum = 9;
-                    if (selectedTheme.equals("Beetle")) tickNum = 7; //special for Beetle theme
-
-                    mClockLeft.setTickNumber(tickNum);
-                    mClockLeft.setTextColor(Color.WHITE);
-                    mClockCenter.setTickNumber(tickNum);
-                    mClockCenter.setTextColor(Color.WHITE);
-                    mClockRight.setTickNumber(tickNum);
-                    mClockRight.setTextColor(Color.WHITE);
-                }
-
-                //initiating staging:
-                if (!stagingDone) {
-
-                    mClockLeft.speedPercentTo(100, 1000);
-                    mClockCenter.speedPercentTo(100, 1000);
-                    mClockRight.speedPercentTo(100, 1000);
-                    mRayLeft.speedPercentTo(100, 1000);
-                    mRayCenter.speedPercentTo(100, 1000);
-                    mRayRight.speedPercentTo(100, 1000);
-
-                    final Handler staging = new Handler();
-                    staging.postDelayed(new Runnable() {
-                        public void run() {
-                            if (mClockLeft != null) {
-                                mClockLeft.speedTo(0, 1000);
-                                mClockCenter.speedTo(0, 1000);
-                                mClockRight.speedTo(0, 1000);
-                                mRayLeft.speedTo(0, 1000);
-                                mRayCenter.speedTo(0, 1000);
-                                mRayRight.speedTo(0, 1000);
-                            }
-                        }
-                    }, 1700);
-
-                    final Handler stagingReset = new Handler();
-                    stagingReset.postDelayed(new Runnable() {
-                        public void run() {
-                            if (mClockLeft != null) {
-                                mClockMaxLeft.speedTo(mClockLeft.getSpeed(), 1000);
-                                mClockMinLeft.speedTo(mClockLeft.getSpeed(), 1000);
-                                mClockMinCenter.speedTo(mClockCenter.getSpeed(), 1000);
-                                mClockMaxCenter.speedTo(mClockCenter.getSpeed(), 1000);
-                                mClockMaxRight.speedTo(mClockRight.getSpeed(), 1000);
-                                mClockMinRight.speedTo(mClockRight.getSpeed(), 1000);
-
-                                mTextMaxLeft.setText("-");
-                                mTextMinLeft.setText("-");
-                                mTextMaxCenter.setText("-");
-                                mTextMinCenter.setText("-");
-                                mTextMinRight.setText("-");
-                                mTextMaxRight.setText("-");
-                                stagingDone = true;
-
-                            }
-                        }
-                    }, 2700);
-
-
-                }
+                turnTickEnabled(ticksOn);
+                runStagingAnimation();
             }
 
         });
-
-        //set up each of the elements with the query and icon that goes with it
-        setupElement(mElement1Query, mValueElement1, mIconElement1);
-        setupElement(mElement2Query, mValueElement2, mIconElement2);
-        setupElement(mElement3Query, mValueElement3, mIconElement3);
-        setupElement(mElement4Query, mValueElement4, mIconElement4);
-
-        //setup clocks, including the max/min clocks and highvis rays and icons:
-        //usage: setupClocks(query value, what clock, what icon, which ray, which min clock, which max clock)
-        //could probably be done MUCH more efficient but that's for the future ;)
-        setupClocks(mClockLQuery, mClockLeft, mIconClockL, mRayLeft, mClockMinLeft, mClockMaxLeft);
-        setupClocks(mClockCQuery, mClockCenter, mIconClockC, mRayCenter, mClockMinCenter, mClockMaxCenter);
-        setupClocks(mClockRQuery, mClockRight, mIconClockR, mRayRight, mClockMinRight, mClockMaxRight);
-
-        //show high visible rays on, according to the setting
-
-
-        if (raysOn) {
-            mRayLeft.setVisibility(View.VISIBLE);
-            mRayCenter.setVisibility(View.VISIBLE);
-            mRayRight.setVisibility(View.VISIBLE);
-
-            //also hide the needle on the clocks
-            mClockLeft.setIndicator(Indicator.Indicators.NoIndicator);
-            mClockCenter.setIndicator(Indicator.Indicators.NoIndicator);
-            mClockRight.setIndicator(Indicator.Indicators.NoIndicator);
-        } else {
-            mRayLeft.setVisibility(View.INVISIBLE);
-            mRayCenter.setVisibility(View.INVISIBLE);
-            mRayRight.setVisibility(View.INVISIBLE);
-        }
-
-        //show texts and backgrounds for max/min, according to the setting
-        mTextMaxLeft.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-        mTextMaxCenter.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-        mTextMaxRight.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-
-        mTextMinLeft.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-        mTextMinCenter.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-        mTextMinRight.setVisibility(maxOn ? View.VISIBLE : View.INVISIBLE);
-
-        //show clock marks for max/min, according to the setting
-        mClockMaxLeft.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
-        mClockMaxCenter.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
-        mClockMaxRight.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
-        mClockMinLeft.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
-        mClockMinCenter.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
-        mClockMinRight.setVisibility(maxMarksOn ? View.VISIBLE : View.INVISIBLE);
 
         androidClockFormat = android.text.format.DateFormat.is24HourFormat(getContext())
                 ? "HH:mm" : "hh:mm a";
@@ -720,25 +752,67 @@ public class DashboardFragment extends CarFragment {
         return rootView;
     }
 
-    private String currentLocationFromGoogleMapsNotification = null;
+    private void runStagingAnimation() {
+        if (!stagingDone) {
+
+            mClockLeft.speedPercentTo(100, 1000);
+            mClockCenter.speedPercentTo(100, 1000);
+            mClockRight.speedPercentTo(100, 1000);
+            mRayLeft.speedPercentTo(100, 1000);
+            mRayCenter.speedPercentTo(100, 1000);
+            mRayRight.speedPercentTo(100, 1000);
+
+            final Handler staging = new Handler();
+            staging.postDelayed(new Runnable() {
+                public void run() {
+                    if (mClockLeft != null) {
+                        mClockLeft.speedTo(0, 1000);
+                        mClockCenter.speedTo(0, 1000);
+                        mClockRight.speedTo(0, 1000);
+                        mRayLeft.speedTo(0, 1000);
+                        mRayCenter.speedTo(0, 1000);
+                        mRayRight.speedTo(0, 1000);
+                    }
+                }
+            }, 1700);
+
+            final Handler stagingReset = new Handler();
+            stagingReset.postDelayed(new Runnable() {
+                public void run() {
+                    if (mClockLeft != null) {
+                        mClockMaxLeft.speedTo(mClockLeft.getSpeed(), 1000);
+                        mClockMinLeft.speedTo(mClockLeft.getSpeed(), 1000);
+                        mClockMinCenter.speedTo(mClockCenter.getSpeed(), 1000);
+                        mClockMaxCenter.speedTo(mClockCenter.getSpeed(), 1000);
+                        mClockMaxRight.speedTo(mClockRight.getSpeed(), 1000);
+                        mClockMinRight.speedTo(mClockRight.getSpeed(), 1000);
+
+                        mTextMaxLeft.setText("-");
+                        mTextMinLeft.setText("-");
+                        mTextMaxCenter.setText("-");
+                        mTextMinCenter.setText("-");
+                        mTextMinRight.setText("-");
+                        mTextMaxRight.setText("-");
+                        stagingDone = true;
+
+                    }
+                }
+            }, 2700);
+        }
+    }
 
     private BroadcastReceiver onNoticeGoogleNavigationUpdate = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String title = intent.getStringExtra("title");
-            String text = intent.getStringExtra("text");
-
-            currentLocationFromGoogleMapsNotification = title;
-
-            //updateTitle();
+            //String text = intent.getStringExtra("text"); // Not used right now
+            googleMapsLocationStr = title;
         }
     };
     private BroadcastReceiver onNoticeGoogleNavigationClosed = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            currentLocationFromGoogleMapsNotification=null;
-
-            //updateTitle();
+            googleMapsLocationStr = null;
         }
     };
 
@@ -753,7 +827,7 @@ public class DashboardFragment extends CarFragment {
         super.onResume();
         Log.i(TAG, "onActivate");
         Intent serviceIntent = new Intent(getContext(), CarStatsService.class);
-        getContext().bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
+        getContext().bindService(serviceIntent, mVexServiceConnection, Context.BIND_AUTO_CREATE);
         startTorque();
         createAndStartUpdateTimer();
 
@@ -764,7 +838,54 @@ public class DashboardFragment extends CarFragment {
 
 
         gpsPosition.startLocationUpdates();
+        
+        PreferenceManager.getDefaultSharedPreferences(getContext()).registerOnSharedPreferenceChangeListener(preferenceChangeListener);
+        onPreferencesChangeHandler();
+        // Force reload of components
+        turnRaysEnabled(raysOn);
+        turnMinMaxTextViewsEnabled(maxOn);
+        turnMinMaxMarksEnabled(maxMarksOn);
     }
+
+    private final GeocodeLocationService.IGeocodeResult geocodeResultListener = new GeocodeLocationService.IGeocodeResult() {
+        @Override
+        public void onNewGeocodeResult(Address result) {
+            StringBuilder sb = new StringBuilder();
+            String tmp = result.getThoroughfare();
+            if (tmp != null)
+                sb.append(tmp);
+            tmp = result.getSubThoroughfare();
+            if (tmp != null) {
+                sb.append(' ');
+                sb.append(tmp);
+            }
+            if (sb.length() != 0)
+                sb.append(", ");
+            tmp = result.getLocality();
+            if (tmp != null)
+                sb.append(tmp);
+            sb.append(' ');
+            tmp = result.getCountryCode();
+            if (tmp != null)
+                sb.append(tmp);
+            googleGeocodeLocationStr = sb.toString();
+        }
+    };
+
+    private final ServiceConnection mGeocodingServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mGeocodingService = ((GeocodeLocationService.LocalBinder)service).getService();
+            mGeocodingService.setOnNewGeocodeListener(geocodeResultListener);
+            Log.d("Geocode", "Service connected");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.e("Geocode", "Service disconnected");
+            mGeocodingService = null;
+        }
+    };
 
     private void startTorque() {
         Intent intent = new Intent();
@@ -803,14 +924,16 @@ public class DashboardFragment extends CarFragment {
     }
 
 
-            @Override
+    @Override
     public void onPause() {
         Log.i(TAG, "onDeactivate");
         updateTimer.cancel();
 
         mStatsClient.unregisterListener(mCarStatsListener);
-        getContext().unbindService(mServiceConnection);
-        //getContext().unbindService(torqueConnection);
+        getContext().unbindService(mVexServiceConnection);
+        if (useGoogleGeocoding) {
+            getContext().unbindService(mGeocodingServiceConnection);
+        }
         if (torqueBind)
             try {
                 getContext().unbindService(torqueConnection);
@@ -824,6 +947,8 @@ public class DashboardFragment extends CarFragment {
                 .unregisterReceiver(onNoticeGoogleNavigationClosed);
 
         gpsPosition.stopLocationUpdates();
+        
+        PreferenceManager.getDefaultSharedPreferences(getContext()).unregisterOnSharedPreferenceChangeListener(preferenceChangeListener);
 
         super.onPause();
     }
@@ -870,9 +995,8 @@ public class DashboardFragment extends CarFragment {
         mRayLeft = null;
         mRayCenter = null;
         mRayRight = null;
-        selectedFont = null;
         pressureUnit = null;
-        stagingDone = false;
+        //stagingDone = false;
         mGraphCenter = null;
         mGraphLeft = null;
         mGraphRight = null;
@@ -1373,8 +1497,7 @@ public class DashboardFragment extends CarFragment {
             }
         }
 
-
-
+        //setupClock(icon, "ic_none", "", clock, false, "", 0, 100, "float");
 
         // setup each of the clocks:
         switch (queryLong) {
@@ -1456,7 +1579,7 @@ public class DashboardFragment extends CarFragment {
                 setupClock(icon, "ic_eco", "", clock, false, "", 0, 100, "integer");
                 break;
             case "exlap-powermeter":
-                setupClock(icon, "ic_powermeter", "", clock, false, "%", 0, 5000, "integer");
+                setupClock(icon, "ic_powermeter", "", clock, false, "%", -1000, 5000, "integer");
                 break;
             case "exlap-acceleratorPosition":
                 setupClock(icon, "ic_pedalposition", "", clock, false, "%", 0, 100, "integer");
@@ -1885,28 +2008,31 @@ public class DashboardFragment extends CarFragment {
         String currentCenterTitleValue = mTitleElementCenter.getText().toString();
         String currentLeftTitleValue = mTitleElementLeft.getText().toString();
 
-        // Display location in left side of Title  bar
-        String leftTitle;
+        if (showStreetName) {
+            // Display location in left side of Title  bar
+            String leftTitle;
 
-        //if no data -> get Data from Google Maps notification if available
+            //if no data -> get Data from Google Maps notification if available
 
-        String location1 = (String) mLastMeasurements.get("Nav_CurrentPosition.Street");
-        String location2 = (String) mLastMeasurements.get("Nav_CurrentPosition.City");
+            String location1 = (String) mLastMeasurements.get("Nav_CurrentPosition.Street");
+            String location2 = (String) mLastMeasurements.get("Nav_CurrentPosition.City");
 
 
 
-        if (location1==null && location2==null) {
-            leftTitle = currentLocationFromGoogleMapsNotification; // ="";
-        } else if (location1==null || location1.equals("")) {
-            leftTitle = location2;
-        } else if (location2==null || location2.equals("")) {
-            leftTitle = location1;
-        } else {
-            leftTitle = location1 + ", " + location2;
-        }
+            if (location1==null && location2==null) {
+                leftTitle = currentLocationFromGoogleMapsNotification; // ="";
+            } else if (location1==null || location1.equals("")) {
+                leftTitle = location2;
+            } else if (location2==null || location2.equals("")) {
+                leftTitle = location1;
+            } else {
+                leftTitle = location1 + ", " + location2;
+            }
 
-        if (!Objects.equals(currentLeftTitleValue, leftTitle)) {
-            mTitleElementLeft.setText(leftTitle);
+                if (!currentLeftTitleValue.equals(leftTitle)) {
+                    mTitleElementLeft.setText(leftTitle);
+                }
+            }
         }
 
 
