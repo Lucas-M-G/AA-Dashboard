@@ -134,7 +134,7 @@ public class DashboardFragment extends CarFragment {
     private static final String FORMAT_VOLT = "%.1fV";
     private static final String FORMAT_VOLT0 = "-";
     private boolean celsiusTempUnit;
-    private boolean showStreetName, useGoogleGeocoding, forceGoogleGeocoding;
+    private boolean showStreetName, useGPS;
     private String selectedFont;
     private boolean selectedPressureUnits;
 
@@ -473,8 +473,7 @@ public class DashboardFragment extends CarFragment {
             stagingDone = !sharedPreferences.getBoolean("stagingActive", true);
         }
         showStreetName = sharedPreferences.getBoolean("showStreetNameInTitle", true);
-        useGoogleGeocoding = sharedPreferences.getBoolean("useGoogleGeocoding", false);
-        forceGoogleGeocoding = sharedPreferences.getBoolean("forceGoogleGeocoding", false);
+        useGPS = sharedPreferences.getBoolean("useGPS", false);
 
         String readedBackground = sharedPreferences.getString("selectedBackground", "background_incar_black");
         if (!readedBackground.equals(selectedBackground)) {
@@ -485,6 +484,29 @@ public class DashboardFragment extends CarFragment {
         if (!readedBackground.equals(selectedFont)) {
             setupTypeface(readedFont);
         }
+
+
+        boolean readedPressureUnits = sharedPreferences.getBoolean("selectPressureUnit", true);  //true = bar, false = psi
+        if (readedPressureUnits != selectedPressureUnits) {
+            selectedPressureUnits = readedPressureUnits;
+            pressureFactor = selectedPressureUnits ? 1 : (float) 14.5037738;
+            pressureUnit = selectedPressureUnits ? "bar" : "psi";
+            pressureMin = selectedPressureUnits ? -3 : -30;
+            pressureMax = selectedPressureUnits ? 3 : 30;
+        }
+
+        boolean readedTempUnit = sharedPreferences.getBoolean("selectTemperatureUnit", true);  //true = celcius, false = fahrenheit
+        if (readedTempUnit != celsiusTempUnit) {
+            celsiusTempUnit = readedTempUnit;
+            temperatureUnit = getString(celsiusTempUnit ? R.string.unit_c : R.string.unit_f);
+        }
+
+        boolean readedPowerUnits = sharedPreferences.getBoolean("selectPowerUnit", true);  //true = kw, false = ps
+        if (powerUnits == null || readedPowerUnits != powerUnits) {
+            powerUnits = readedPowerUnits;
+            powerFactor = powerUnits ? 1 : 1.35962f;
+        }
+
 
         String readedTheme = sharedPreferences.getString("selectedTheme", "");
         if (!readedTheme.equals(selectedTheme)) {
@@ -561,28 +583,6 @@ public class DashboardFragment extends CarFragment {
         Log.d(TAG, "clock l selected:" + mClockLQuery);
         Log.d(TAG, "clock c selected:" + mClockCQuery);
         Log.d(TAG, "clock r selected:" + mClockRQuery);
-
-        boolean readedPressureUnits = sharedPreferences.getBoolean("selectPressureUnit", true);  //true = bar, false = psi
-        if (readedPressureUnits != selectedPressureUnits) {
-            selectedPressureUnits = readedPressureUnits;
-            pressureFactor = selectedPressureUnits ? 1 : (float) 14.5037738;
-            pressureUnit = selectedPressureUnits ? "bar" : "psi";
-            pressureMin = selectedPressureUnits ? -3 : -30;
-            pressureMax = selectedPressureUnits ? 3 : 30;
-        }
-
-        boolean readedTempUnit = sharedPreferences.getBoolean("selectTemperatureUnit", true);  //true = celcius, false = fahrenheit
-        if (readedTempUnit != celsiusTempUnit) {
-            celsiusTempUnit = readedTempUnit;
-            temperatureUnit = getString(celsiusTempUnit ? R.string.unit_c : R.string.unit_f);
-        }
-
-        boolean readedPowerUnits = sharedPreferences.getBoolean("selectPowerUnit", true);  //true = kw, false = ps
-        if (powerUnits == null || readedPowerUnits != powerUnits) {
-            powerUnits = readedPowerUnits;
-            powerFactor = powerUnits ? 1 : 1.35962f;
-        }
-
 
         //show texts and backgrounds for max/min, according to the setting
         boolean readedMaxOn = sharedPreferences.getBoolean("maxValuesActive", false); //true = show max values, false = hide them
@@ -2326,7 +2326,7 @@ public class DashboardFragment extends CarFragment {
         // set icon. Clocks that don't need an icon have ic_none as icon
         icon.setBackground(iconDrawable);
         icon.setText(iconText);
-        clock.setUnit(unit);
+        clock.setUnit(unit==null?"":unit);
         clock.setMinMaxSpeed(minspeed, maxspeed);
 
         //dynamically scale the icon_space in case there's only an icon, and no text
