@@ -295,7 +295,7 @@ public class DashboardFragment extends CarFragment {
         gpsPosition = new GPSPosition(getContext());
         gpsPosition.setGpsPositionCallback(new GPSPosition.GPSPositionCallback() {
             @Override
-            public void onCallback(@org.jetbrains.annotations.Nullable Location location) {
+            public void onLocationCallback(@org.jetbrains.annotations.Nullable Location location) {
                 currentLocation = location;
             }
         });

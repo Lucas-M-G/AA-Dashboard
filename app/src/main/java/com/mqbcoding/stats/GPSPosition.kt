@@ -1,24 +1,19 @@
 package com.mqbcoding.stats
 
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
-import android.widget.TextView
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import kotlin.math.max
 
 class GPSPosition(private val context:Context) {
 
-    abstract class GPSPositionCallback {
-        abstract fun onCallback(location: Location?)
+    interface GPSPositionCallback {
+        fun onLocationCallback(location: Location?)
     }
 
     var gpsPositionCallback: GPSPositionCallback? = null
@@ -87,7 +82,7 @@ class GPSPosition(private val context:Context) {
                     Log.d(TAG, "Receive Location")
 
                     try {
-                        gpsPositionCallback?.onCallback(bestLocation)
+                        gpsPositionCallback?.onLocationCallback(bestLocation)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -101,7 +96,7 @@ class GPSPosition(private val context:Context) {
                     }
 
                     try {
-                        gpsPositionCallback?.onCallback(null)
+                        gpsPositionCallback?.onLocationCallback(null)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }

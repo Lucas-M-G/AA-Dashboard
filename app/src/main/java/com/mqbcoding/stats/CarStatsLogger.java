@@ -2,6 +2,7 @@ package com.mqbcoding.stats;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Location;
 import android.os.Environment;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -13,6 +14,8 @@ import com.google.common.io.Files;
 import com.google.gson.reflect.TypeToken;
 
 import com.google.gson.Gson;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,7 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
-public class CarStatsLogger implements CarStatsClient.Listener {
+public class CarStatsLogger  implements CarStatsClient.Listener,GPSPosition.GPSPositionCallback {
     private static final String TAG = "CarStatsLogger";
 
     private static final DateFormat LOG_FILENAME_DATE_FORMAT =
@@ -64,6 +67,7 @@ public class CarStatsLogger implements CarStatsClient.Listener {
 
 
     private LinkedBlockingQueue<Map<String,Object>> logQueue = new LinkedBlockingQueue<>();
+
 
     private abstract class CancelableRunnable implements Runnable {
         boolean canceled = false;
@@ -109,6 +113,7 @@ public class CarStatsLogger implements CarStatsClient.Listener {
     };
     private Thread logWorker = new Thread(logWorkerRunnable);
 
+    private GPSPosition gpsPosition;
 
     public CarStatsLogger(Context context, CarStatsClient statsClient, Handler handler, String prefix) {
         super();
@@ -122,6 +127,11 @@ public class CarStatsLogger implements CarStatsClient.Listener {
         readPreferences(sharedPreferences);
 
         logWorker.start();
+
+        //TODO: only if setting "useGPS" == true
+        gpsPosition = new GPSPosition(context);
+        gpsPosition.setGpsPositionCallback(this);
+        gpsPosition.startLocationUpdates();
     }
 
     public CarStatsLogger(Context context, CarStatsClient statsClient, Handler handler) {
@@ -157,6 +167,30 @@ public class CarStatsLogger implements CarStatsClient.Listener {
             closeWriter();
         }
     };
+
+
+    @Override
+    public void onLocationCallback(@Nullable Location location) {
+        if (!mIsEnabled) {
+            return;
+        }
+
+        if (location!=null) {
+            Map<String, Object> o = new HashMap<>();
+            o.put("timestamp", JSON_DATE_FORMAT.format(new Date(location.getTime())));
+            o.put("gps_lat",location.getLatitude());
+            o.put("gps_lng",location.getLatitude());
+            o.put("gps_accuracy",location.getAccuracy());
+            o.put("gps_altitude",location.getAltitude());
+            o.put("gps_speed",location.getSpeed());
+
+            if (location.hasBearing())
+                o.put("gps_bearing",location.getBearing());
+
+
+            logQueue.add(o);
+        }
+    }
 
     @Override
     public void onNewMeasurements(String provider, Date date, Map<String, Object> values) {
@@ -269,6 +303,8 @@ public class CarStatsLogger implements CarStatsClient.Listener {
 
     public synchronized void close() {
        closeWriter();
+
+       gpsPosition.stopLocationUpdates();
 
        try {
            logWorkerRunnable.setCanceled(true);
