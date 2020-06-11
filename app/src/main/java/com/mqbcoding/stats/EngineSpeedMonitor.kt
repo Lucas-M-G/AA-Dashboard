@@ -12,6 +12,8 @@ import android.util.Log
 
 import com.github.martoreto.aauto.vex.CarStatsClient
 import com.google.android.apps.auto.sdk.notification.CarNotificationExtender
+import java.time.LocalDateTime
+import java.time.Period
 
 import java.util.Date
 
@@ -114,6 +116,18 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
         }
     }
 
+    private fun sendAlive() {
+
+        val intent = Intent().apply {
+            //addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES) //TODO: maybe needed?
+            action = packageName
+            putExtra("alive", 1)
+        }
+        mContext.sendBroadcast(intent)
+    }
+
+    private var lastAliveTimestamp = Date()
+
     private var currentGear = Int.MAX_VALUE
     override fun onNewMeasurements(provider: String, timestamp: Date, values: Map<String, Any>) {
         if (!mIsEnabled) {
@@ -141,6 +155,12 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
                 notifyES(newState, true,mIsSoundEnabled && gearToPlaySound)
             } else if (newState < mState) {
                 notifyES(newState, false)
+            }
+
+            val timeDiff = (timestamp.time - lastAliveTimestamp.time) / 1000
+
+            if (timeDiff>5) {
+                sendAlive()
             }
 
             mState=newState

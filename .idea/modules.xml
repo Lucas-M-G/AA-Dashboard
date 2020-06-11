@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/AA-Dashboard.iml" filepath="$PROJECT_DIR$/AA-Dashboard.iml" />
-      <module fileurl="file://$PROJECT_DIR$/lib/aauto-sdk/aauto-sdk.iml" filepath="$PROJECT_DIR$/lib/aauto-sdk/aauto-sdk.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AA-Dashboard.iml" filepath="$PROJECT_DIR$/AA-Dashboard.iml" group="AA-Dashboard" />
+      <module fileurl="file://$PROJECT_DIR$/lib/aauto-sdk/aauto-sdk.iml" filepath="$PROJECT_DIR$/lib/aauto-sdk/aauto-sdk.iml" group="AA-Dashboard/aauto-sdk" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" group="AA-Dashboard/app" />
     </modules>
   </component>
 </project>
