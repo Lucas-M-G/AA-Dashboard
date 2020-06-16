@@ -52,6 +52,10 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
         sharedPreferences.registerOnSharedPreferenceChangeListener(mPreferencesListener)
         readPreferences(sharedPreferences)
 
+        /* TEST
+        Handler().postDelayed({
+            sendAlive()
+        },5000)*/
     }
 
     private fun readPreferences(preferences: SharedPreferences) {
@@ -112,11 +116,12 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
         if (playSound) {
             //val soundPlayer = CarNotificationSoundPlayer(mContext, R.raw.cutted_light)
             //soundPlayer.play()
-            audioPlayer.play(R.raw.cutted_light,0.8f)
+            audioPlayer.play(R.raw.cutted_light,1f/*0.8f*/)
         }
     }
 
     private fun sendAlive() {
+        Log.d(TAG, "send alive intent")
 
         val intent = Intent().apply {
             //addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES) //TODO: maybe needed?
@@ -159,8 +164,9 @@ class EngineSpeedMonitor(private val mContext: Context, private val mHandler: Ha
 
             val timeDiff = (timestamp.time - lastAliveTimestamp.time) / 1000
 
-            if (timeDiff>5) {
+            if (timeDiff > 5) {
                 sendAlive()
+                lastAliveTimestamp = timestamp
             }
 
             mState=newState

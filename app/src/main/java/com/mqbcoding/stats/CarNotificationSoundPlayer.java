@@ -52,23 +52,24 @@ public class CarNotificationSoundPlayer {
 
                 int ret = carAudioManager.requestAudioFocus(null, audioAttributes,
                         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
-                if (ret == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                        @Override
-                        public void onCompletion(MediaPlayer mediaPlayer) {
-                            Log.d(TAG, "Playback completed.");
-                            try {
-                                mediaPlayer.release();
-                                carAudioManager.abandonAudioFocus(null, audioAttributes);
-                                car.disconnect();
-                            } catch (Exception e) {
-                                Log.w(TAG, "Error finalizing playback", e);
-                            }
-                        }
-                    });
-                } else {
+                if (ret != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                     Log.w(TAG, "Failed to obtain audio focus, playing anyway.");
                 }
+
+                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mediaPlayer) {
+                        Log.d(TAG, "Playback completed.");
+                        try {
+                            mediaPlayer.release();
+                            carAudioManager.abandonAudioFocus(null, audioAttributes);
+                        } catch (Exception e) {
+                            Log.w(TAG, "Error finalizing playback", e);
+                        } finally {
+                            car.disconnect();
+                        }
+                    }
+                });
 
                 // Allow some time for the ducking to take effect.
                 mHandler.postDelayed(new Runnable() {

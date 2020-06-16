@@ -38,6 +38,7 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int REQUEST_AUTHORIZATION = 3;
     private static final int REQUEST_ACCOUNT_PICKER = 4;
     private static final int REQUEST_LOCATION_PERMISSION = 5;
+    private static final int REQUEST_STORAGE_PERMISSION = 6;
 
     static final String EXTRA_AUTHORIZATION_INTENT = "authorizationRequest";
 
@@ -149,6 +150,8 @@ public class SettingsActivity extends AppCompatActivity {
             haveGooglePlayServices();
         }
         checkLocationPermissions();
+
+        checkStoragePermissions();
     }
 
     void showGooglePlayServicesAvailabilityErrorDialog(final int connectionStatusCode) {
@@ -222,6 +225,9 @@ public class SettingsActivity extends AppCompatActivity {
                     editor.commit();
                 }
                 break;
+            case REQUEST_STORAGE_PERMISSION:
+
+                break;
         }
     }
 
@@ -265,6 +271,21 @@ public class SettingsActivity extends AppCompatActivity {
                         permissionsToRequest.toArray(new String[0]),
                         REQUEST_LOCATION_PERMISSION);
             }
+        }
+    }
+
+    void checkStoragePermissions() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    },
+                    REQUEST_STORAGE_PERMISSION
+            );
         }
     }
 
